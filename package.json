@@ -1,0 +1,31 @@
+{
+  "name": "cypress-beontag",
+  "version": "1.0.0",
+  "description": "Automacao de API GPP",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "clean:reports": "if exist cypress\\reports rmdir /s /q cypress\\reports && mkdir cypress\\reports",
+    "clean:reports-linux": "rm -rf cypress/reports && mkdir -p cypress/reports",
+    "test:run": "cypress run --browser electron --headless --reporter mochawesome --reporter-options reportDir=cypress/reports,overwrite=false,html=false,json=true",
+    "merge:reports": "npx mochawesome-merge \"cypress/reports/*.json\" -o cypress/reports/full_report.json",
+    "generate:html": "npx marge cypress/reports/full_report.json --reportDir cypress/reports --reportFilename index.html",
+    "test:all": "npm run clean:reports && npm run test:run && npm run merge:reports && npm run generate:html",
+    "test:all-linux": "npm run clean:reports-linux && npm run test:run && npm run merge:reports && npm run generate:html",
+    "test:login": "cypress run --spec \"e2e/**/Login/*.cy.js\"",
+    "test:others": "cypress run --exclude-spec \"e2e/**/Login/*.cy.js\"",
+    "test:smart": "npm run test:login && npm run test:others"
+  },
+  "devDependencies": {
+    "cypress": "^13.0.0",
+    "cypress-mochawesome-reporter": "^5.0.0",
+    "mochawesome": "^7.1.4",
+    "mochawesome-merge": "^5.1.1",
+    "mochawesome-report-generator": "^6.3.2"
+  },
+  "dependencies": {
+    "cypress": "^13.0.0",
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1"
+  }
+}

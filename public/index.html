@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamento de Testes - Beontag</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .test-list-height {
+            height: calc(100vh - 420px);
+            min-height: 400px;
+        }
+    </style>
+</head>
+
+<body class="bg-[#f8fafc] text-slate-800">
+
+    <!-- Menu Superior -->
+    <nav class="bg-[#1e293b] text-white px-10 py-4 flex justify-between items-center shadow-md sticky top-0 z-50">
+        <div class="flex items-center space-x-4">
+            <span class="text-lg font-bold tracking-wide">Plataforma de Testes</span>
+        </div>
+        <div class="flex space-x-2 text-sm">
+            <button onclick="switchTab('run')" id="nav-run"
+                class="px-5 py-2 rounded-lg bg-slate-700 font-bold transition-all border border-slate-600">
+                Realizar Testes
+            </button>
+            <button onclick="switchTab('history')" id="nav-history"
+                class="px-5 py-2 rounded-lg text-slate-300 hover:text-white transition-all font-medium border border-transparent">
+                Histórico de Testes
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-[1400px] mx-auto p-10">
+
+        <!-- Aba: Realizar Testes -->
+        <div id="tab-run" class="animate-in fade-in duration-500">
+            <header class="mb-10">
+                <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">Gerenciamento de Testes Automatizados</h1>
+                <p class="text-slate-500 mt-1">Selecione e execute testes para validar o funcionamento do sistema em HOMOL</p>
+            </header>
+
+            <div class="grid grid-cols-12 gap-10">
+
+                <!-- Coluna Esquerda: Seleção -->
+                <div class="col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-fit sticky top-28">
+                    <div class="p-6 border-b border-slate-100 flex justify-between items-end">
+                        <h2 class="text-xl font-bold text-slate-800">Selecionar Testes</h2>
+                        <div class="flex space-x-3 text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
+                            <button onclick="selectAll(true)" class="hover:text-emerald-700">Selecionar Todos</button>
+                            <span class="text-slate-300">|</span>
+                            <button onclick="selectAll(false)" class="hover:text-emerald-700">Limpar</button>
+                        </div>
+                    </div>
+
+                    <div id="test-list" class="test-list-height overflow-y-auto p-6 space-y-8 custom-scroll">
+                        <div class="animate-pulse flex space-y-4 flex-col">
+                            <div class="h-4 bg-slate-100 rounded w-1/4"></div>
+                            <div class="h-12 bg-slate-50 rounded"></div>
+                            <div class="h-12 bg-slate-50 rounded"></div>
+                        </div>
+                    </div>
+
+                    <div class="p-6 bg-slate-50 border-t border-slate-100">
+                        <div id="selection-status" class="text-xs text-slate-400 mb-4 font-medium italic">0 testes selecionados</div>
+                        <button id="execBtn" disabled onclick="runTests()"
+                            class="w-full bg-[#1e293b] hover:bg-[#0f172a] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center space-x-3 transition-all transform active:scale-[0.98]">
+                            <svg id="play-icon" class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                            <span>Executar Testes Selecionados</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Coluna Direita: Resultados -->
+                <div class="col-span-7">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-slate-800 uppercase tracking-tight">Resultados</h2>
+                        <div id="running-indicator" class="hidden flex items-center space-x-2 text-emerald-600 font-bold text-xs animate-pulse">
+                            <span class="relative flex h-2 w-2">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span>EXECUTANDO VIA CYPRESS...</span>
+                        </div>
+                    </div>
+
+                    <div id="results-area" class="space-y-6">
+                        <div class="bg-white p-24 rounded-3xl border-2 border-dashed border-slate-200 text-center text-slate-400">
+                            Nenhum teste em execução
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aba: Histórico -->
+        <div id="tab-history" class="hidden animate-in slide-in-from-right duration-500">
+            <h1 class="text-2xl font-bold mb-8 text-slate-800">Histórico de Execuções</h1>
+            <div id="history-list" class="grid gap-4"></div>
+        </div>
+
+    </main>
+
+    <script>
+        let availableTests = [];
+
+        async function init() {
+            try {
+                const res = await fetch('/api/tests');
+                availableTests = await res.json();
+                renderCategorizedList();
+            } catch (err) {
+                console.error("Erro ao carregar testes:", err);
+            }
+        }
+
+        function renderCategorizedList() {
+            const list = document.getElementById('test-list');
+            const categories = {};
+
+            availableTests.forEach(path => {
+                const parts = path.split('/');
+                const category = parts.length > 1 ? parts[0] : 'OUTROS';
+                if (!categories[category]) categories[category] = [];
+                categories[category].push(path);
+            });
+
+            let html = '';
+            for (const [cat, tests] of Object.entries(categories)) {
+                const catTitle = cat.replace(/^\d+\./, '').toUpperCase();
+
+                html += `
+                    <div class="mb-8">
+                        <h3 class="text-[11px] font-black text-slate-400 tracking-[0.2em] mb-4 pl-1 border-l-2 border-slate-200 ml-1">
+                            ${catTitle}
+                        </h3>
+                        <div class="space-y-1">
+                            ${tests.map(t => {
+                                const fileName = t.split('/').pop().replace('_test.cy.js', '').replace(/_/g, ' ');
+                                return `
+                                    <label class="flex items-start space-x-4 p-3 hover:bg-slate-50 rounded-xl cursor-pointer group transition-all">
+                                        <input type="checkbox" value="${t}" class="test-check mt-1 w-5 h-5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 transition-all">
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-bold text-slate-700 group-hover:text-emerald-700">${fileName}</span>
+                                            <span class="text-[11px] text-slate-400 italic">Validação de fluxo de ${catTitle.toLowerCase()}</span>
+                                        </div>
+                                    </label>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            list.innerHTML = html;
+            attachCheckboxEvents();
+        }
+
+        function attachCheckboxEvents() {
+            const checks = document.querySelectorAll('.test-check');
+            checks.forEach(c => c.onchange = () => {
+                const count = document.querySelectorAll('.test-check:checked').length;
+                document.getElementById('execBtn').disabled = count === 0;
+                document.getElementById('selection-status').innerText = `${count} teste(s) selecionado(s)`;
+            });
+        }
+
+        function selectAll(val) {
+            document.querySelectorAll('.test-check').forEach(c => c.checked = val);
+            const count = val ? availableTests.length : 0;
+            document.getElementById('execBtn').disabled = !val;
+            document.getElementById('selection-status').innerText = `${count} teste(s) selecionado(s)`;
+        }
+
+        async function runTests() {
+            const specs = Array.from(document.querySelectorAll('.test-check:checked')).map(c => c.value);
+            const btn = document.getElementById('execBtn');
+            const indicator = document.getElementById('running-indicator');
+            const area = document.getElementById('results-area');
+
+            btn.disabled = true;
+            indicator.classList.remove('hidden');
+            area.innerHTML = `<div class="p-10 text-center animate-pulse text-slate-400">⚙️ Executando bateria de testes...</div>`;
+
+            try {
+                const res = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ specs })
+                });
+
+                const data = await res.json();
+                renderResults(data);
+            } catch (err) {
+                area.innerHTML = `<div class="text-red-500 p-4">Erro na comunicação com o servidor.</div>`;
+            } finally {
+                btn.disabled = false;
+                indicator.classList.add('hidden');
+            }
+        }
+
+        function toggleCard(buttonElement) {
+            const detailElement = buttonElement.nextElementSibling;
+            const arrow = buttonElement.querySelector('.arrow-icon');
+            detailElement.classList.toggle('hidden');
+            if (arrow) {
+                arrow.classList.toggle('rotate-180');
+            }
+        }
+
+        function renderResults(data) {
+            const area = document.getElementById('results-area');
+            const total = data.stats.tests;
+            const passes = data.stats.passes;
+            const failures = data.stats.failures;
+
+            let html = `
+                <div class="grid grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
+                        <div class="text-3xl font-black text-slate-800">${total}</div>
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total</div>
+                    </div>
+                    <div class="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 shadow-sm text-center">
+                        <div class="text-3xl font-black text-emerald-600">${passes}</div>
+                        <div class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mt-1">Aprovados</div>
+                    </div>
+                    <div class="bg-red-50 p-6 rounded-2xl border border-red-100 shadow-sm text-center">
+                        <div class="text-3xl font-black text-red-600">${failures}</div>
+                        <div class="text-[10px] font-bold text-red-500 uppercase tracking-widest mt-1">Falharam</div>
+                    </div>
+                </div>
+                <div class="bg-slate-800 text-slate-300 px-6 py-3 rounded-xl text-xs font-mono mb-6 flex justify-between items-center shadow-inner">
+                    <span>STATUS: EXECUÇÃO CONCLUÍDA</span>
+                    <span class="text-emerald-400 font-bold underline">TEMPO TOTAL: ${(data.stats.duration / 1000).toFixed(2)}s</span>
+                </div>
+                <div class="space-y-8 max-h-[600px] overflow-y-auto pr-3 custom-scroll results-list-container">
+            `;
+
+            const groupedResults = {};
+
+            function processSuite(suite, currentFilePath = '') {
+                const filePath = suite.file || currentFilePath;
+
+                suite.tests.forEach(test => {
+                    const isPass = test.state === 'passed';
+                    let req = null;
+                    let resp = null;
+
+                    let categoryLabel = 'OUTROS';
+                    if (filePath) {
+                        const pathParts = filePath.replace(/\\/g, '/').split('/');
+                        const baseIndex = pathParts.findIndex(part => part.includes('Testes Homologação'));
+                        if (baseIndex !== -1 && pathParts[baseIndex + 1]) {
+                            categoryLabel = pathParts[baseIndex + 1].replace(/^\d+\./, '').toUpperCase();
+                        }
+                    }
+
+                    if (!groupedResults[categoryLabel]) {
+                        groupedResults[categoryLabel] = [];
+                    }
+
+                    if (test.context) {
+                        try {
+                            const contextData = typeof test.context === 'string' ? JSON.parse(test.context) : test.context;
+                            const detail = Array.isArray(contextData) ? contextData.find(c => c.title && c.title.includes('Request')) : contextData;
+
+                            if (detail && detail.value) {
+                                req = detail.value.request || detail.value.req || null;
+                                resp = detail.value.response || detail.value.resp || null;
+                            }
+                        } catch (e) {
+                            console.error("Erro no parse do contexto", e);
+                        }
+                    }
+
+                    if (!isPass && !resp && test.err) {
+                        resp = {
+                            error: "Falha na execução do Cypress",
+                            message: test.err.message
+                        };
+                    }
+
+                    groupedResults[categoryLabel].push({
+                        title: test.title,
+                        duration: test.duration,
+                        isPass: isPass,
+                        req: req,
+                        resp: resp,
+                        err: test.err
+                    });
+                });
+
+                if (suite.suites && suite.suites.length > 0) {
+                    suite.suites.forEach(sub => processSuite(sub, filePath));
+                }
+            }
+
+            data.results.forEach(rootSuite => processSuite(rootSuite, rootSuite.file));
+
+            for (const [category, tests] of Object.entries(groupedResults)) {
+                html += `
+                    <div class="category-block">
+                        <h3 class="text-[11px] font-black text-slate-400 tracking-[0.2em] mb-4 pl-1 border-l-2 border-slate-200 ml-1 uppercase">
+                            ${category}
+                        </h3>
+                        <div class="space-y-4">
+                `;
+
+                tests.forEach(test => {
+                    html += `
+                        <div class="bg-white border ${test.isPass ? 'border-emerald-100' : 'border-red-100'} rounded-2xl overflow-hidden shadow-sm transition-all">
+                            <button onclick="toggleCard(this)" class="w-full flex justify-between items-center p-5 hover:bg-slate-50 text-left">
+                                <div class="flex items-center space-x-4">
+                                    <div class="h-8 w-8 rounded-full ${test.isPass ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'} flex items-center justify-center font-bold">
+                                        ${test.isPass ? '✓' : '✕'}
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-extrabold text-slate-700 leading-tight">${test.title}</div>
+                                        <div class="text-[11px] text-slate-400 font-medium mt-0.5">${test.duration}ms de processamento</div>
+                                    </div>
+                                </div>
+                                <span class="text-slate-300 transition-transform duration-200 arrow-icon">▼</span>
+                            </button>
+                            
+                            <!-- Todos os cards iniciam com a classe 'hidden' (fechados por padrão) -->
+                            <div class="hidden p-6 bg-slate-50 border-t border-slate-100 space-y-4">
+                                ${test.req ? `
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">Request</label>
+                                        <pre class="text-[11px] bg-white p-3 border rounded overflow-x-auto text-slate-600 font-mono shadow-inner leading-relaxed">${JSON.stringify(test.req, null, 2)}</pre>
+                                    </div>` : ''}
+                                
+                                ${test.resp ? `
+                                    <div>
+                                        <label class="text-[10px] font-black text-slate-400 uppercase block mb-1">${test.isPass ? 'Response' : 'Error Details'}</label>
+                                        <pre class="text-[11px] bg-white p-3 border rounded overflow-x-auto ${test.isPass ? 'text-slate-600' : 'text-red-600'} font-mono shadow-inner leading-relaxed">${JSON.stringify(test.resp, null, 2)}</pre>
+                                    </div>` : ''}
+
+                                ${test.err && test.err.message && !test.resp ? `
+                                    <div class="bg-red-50 p-3 rounded border border-red-100 text-red-700 text-xs font-mono">
+                                        ${test.err.message}
+                                    </div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            area.innerHTML = html;
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-run').classList.toggle('hidden', tab !== 'run');
+            document.getElementById('tab-history').classList.toggle('hidden', tab !== 'history');
+
+            document.getElementById('nav-run').className = tab === 'run' ? 'px-5 py-2 rounded-lg bg-slate-700 font-bold border border-slate-600' : 'px-5 py-2 rounded-lg text-slate-300 hover:text-white transition-all font-medium border border-transparent';
+            document.getElementById('nav-history').className = tab === 'history' ? 'px-5 py-2 rounded-lg bg-slate-700 font-bold border border-slate-600' : 'px-5 py-2 rounded-lg text-slate-300 hover:text-white transition-all font-medium border border-transparent';
+
+            if (tab === 'history') loadHistory();
+        }
+
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                const data = await res.json();
+                const list = document.getElementById('history-list');
+                list.innerHTML = data.length ? data.map(h => `
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 flex justify-between items-center shadow-sm hover:border-emerald-200 transition-colors">
+                        <div class="flex items-center space-x-4">
+                            <div class="bg-slate-100 p-3 rounded-xl text-lg">📊</div>
+                            <div>
+                                <div class="font-bold text-slate-700">${h.date}</div>
+                                <div class="text-[11px] text-slate-400 uppercase font-bold tracking-tighter">${h.stats.tests} testes na suíte</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-lg text-xs font-black italic">✓ ${h.stats.passes}</span>
+                            <span class="bg-red-100 text-red-700 px-4 py-1.5 rounded-lg text-xs font-black italic">✕ ${h.stats.failures}</span>
+                        </div>
+                    </div>
+                `).join('') : '<p class="text-center text-slate-400 py-20">Nenhuma execução registrada no histórico.</p>';
+            } catch (err) {
+                console.error("Erro ao carregar histórico:", err);
+            }
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
