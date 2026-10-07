@@ -1,6 +1,6 @@
-# Robot Portal Global — Testes de API GPP (Cypress)
+# Robot Portal  — Testes de API  (Cypress)
 
-Testes automatizados da API GPP da Beontag (ambiente de homologação), com um painel web para escolher os testes, executá-los e consultar o histórico.
+Testes automatizados da API GPP (ambiente de homologação), com um painel web para escolher os testes, executá-los e consultar o histórico.
 
 ## Requisitos
 
@@ -8,7 +8,7 @@ Testes automatizados da API GPP da Beontag (ambiente de homologação), com um p
 |---|---|
 | [Node.js](https://nodejs.org/) | 20 ou superior (mínimo 18.17) |
 | npm | o que acompanha o Node |
-| Acesso à rede | à API de homologação (`api-gpp-homol.beontag.com`) |
+
 
 O Cypress (v13) é instalado junto com as dependências do projeto, não precisa instalar à parte.
 
@@ -71,7 +71,6 @@ Acesse <http://localhost:3000>. No painel é possível:
 
 O relatório HTML gerado pelo `test:all` fica em `cypress/reports/index.html`.
 
-> **Atenção:** os testes de cadastro **criam, editam e apagam registros reais** no ambiente de homologação.
 
 ## Estrutura do projeto
 
